@@ -1,6 +1,8 @@
 import { createElement, useEffect, useMemo, useState } from 'react'
 import AOS from 'aos'
+import { Route, Routes, useLocation, useNavigate } from 'react-router-dom'
 import sourceHtml from './source.html?raw'
+import CaseStudyPage from './CaseStudyPage.jsx'
 
 const attributeAliases = {
   class: 'className',
@@ -105,10 +107,19 @@ function MobileMenu({ open, onNavigate }) {
   )
 }
 
-export default function App() {
-  const [{ css, main }] = useState(prepareSource)
+function PortfolioHome({ main }) {
   const [menuOpen, setMenuOpen] = useState(false)
   const page = useMemo(() => domToReact(main), [main])
+  const navigate = useNavigate()
+  const location = useLocation()
+
+  useEffect(() => {
+    if (!location.hash) return
+    const scroll = window.setTimeout(() => {
+      document.querySelector(location.hash)?.scrollIntoView({ behavior: 'smooth' })
+    }, 50)
+    return () => window.clearTimeout(scroll)
+  }, [location.hash])
 
   const navigateTo = (sectionId) => {
     setMenuOpen(false)
@@ -116,16 +127,6 @@ export default function App() {
       document.getElementById(sectionId)?.scrollIntoView({ behavior: 'smooth' })
     }
   }
-
-  useEffect(() => {
-    AOS.init({
-      once: true,
-      mirror: false,
-      disable: () => window.matchMedia('(prefers-reduced-motion: reduce)').matches,
-    })
-    const refresh = window.setTimeout(() => AOS.refreshHard(), 100)
-    return () => window.clearTimeout(refresh)
-  }, [])
 
   useEffect(() => {
     const header = document.querySelector('[data-testid="navbar"]')
@@ -145,6 +146,14 @@ export default function App() {
     if (!target) return
 
     const testId = target.dataset.testid || ''
+    const href = target.getAttribute('href') || ''
+
+    if (href.startsWith('/case-study/')) {
+      event.preventDefault()
+      navigate(href)
+      return
+    }
+
     if (testId === 'navbar-mobile-toggle') {
       event.preventDefault()
       setMenuOpen(true)
@@ -180,11 +189,39 @@ export default function App() {
 
   return (
     <>
-      <style>{css}</style>
       <div className="App" onClick={handleClick} onSubmit={handleSubmit}>
         {page}
       </div>
       <MobileMenu open={menuOpen} onNavigate={navigateTo} />
+    </>
+  )
+}
+
+export default function App() {
+  const [{ css, main }] = useState(prepareSource)
+  const location = useLocation()
+
+  useEffect(() => {
+    AOS.init({
+      once: true,
+      mirror: false,
+      disable: () => window.matchMedia('(prefers-reduced-motion: reduce)').matches,
+    })
+  }, [])
+
+  useEffect(() => {
+    const refresh = window.setTimeout(() => AOS.refreshHard(), 80)
+    return () => window.clearTimeout(refresh)
+  }, [location.pathname])
+
+  return (
+    <>
+      <style>{css}</style>
+      <Routes>
+        <Route path="/" element={<PortfolioHome main={main} />} />
+        <Route path="/case-study/:slug" element={<CaseStudyPage />} />
+        <Route path="*" element={<PortfolioHome main={main} />} />
+      </Routes>
     </>
   )
 }
